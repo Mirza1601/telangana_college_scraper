@@ -1,0 +1,6 @@
+aiohttp
+pandas
+openpyxl
+thefuzz[speedup]
+beautifulsoup4
+lxml
