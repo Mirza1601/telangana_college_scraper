@@ -9,11 +9,11 @@ on:
       enrich_contacts:
         description: "Enrich with principal name + email (slower)"
         required: false
-        default: "true"
+        default: "false"
         type: choice
         options:
-          - "true"
           - "false"
+          - "true"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -39,12 +39,24 @@ jobs:
 
       - name: Run scraper
         env:
-          ENRICH_CONTACTS: ${{ github.event.inputs.enrich_contacts || 'true' }}
+          ENRICH_CONTACTS: ${{ github.event.inputs.enrich_contacts || 'false' }}
         run: python telangana_college_scraper_async.py
 
+      # Always upload outputs even if the scraper fails
       - name: Upload Excel output
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: telangana-colleges-${{ github.run_id }}
           path: telangana_colleges.xlsx
           retention-days: 30
+
+      # Upload debug HTML so we can inspect what the portal returned
+      - name: Upload debug HTML (for diagnosis)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-html-${{ github.run_id }}
+          path: debug_html/
+          retention-days: 7
+          if-no-files-found: ignore
