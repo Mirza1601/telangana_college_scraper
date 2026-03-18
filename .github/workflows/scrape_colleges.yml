@@ -1,0 +1,77 @@
+name: Telangana College Scraper
+
+on:
+  # Run automatically every Sunday at 2 AM IST (8:30 PM UTC Saturday)
+  schedule:
+    - cron: "30 20 * * 0"
+
+  # Also allow manual trigger from the Actions tab
+  workflow_dispatch:
+    inputs:
+      enrich_contacts:
+        description: "Enrich with principal name + email (slower)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+jobs:
+  scrape:
+    name: Scrape Telangana Junior Colleges
+    runs-on: ubuntu-latest
+    timeout-minutes: 120   # 2 hour hard cap (well within free tier 6hr limit)
+
+    steps:
+      # 1. Check out your repo (scraper script lives here)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            aiohttp \
+            pandas \
+            openpyxl \
+            "thefuzz[speedup]" \
+            beautifulsoup4 \
+            lxml
+
+      # 4. Run the async scraper
+      - name: Run scraper
+        env:
+          # Pass the manual-trigger input as an env var (defaults to true for scheduled runs)
+          ENRICH_CONTACTS: ${{ github.event.inputs.enrich_contacts || 'true' }}
+        run: |
+          python telangana_college_scraper_async.py
+
+      # 5. Upload the Excel file as a downloadable GitHub artifact
+      #    It will appear under Actions → your run → Artifacts section
+      #    Kept for 30 days by default
+      - name: Upload Excel output
+        uses: actions/upload-artifact@v4
+        with:
+          name: telangana-colleges-${{ github.run_id }}
+          path: telangana_colleges.xlsx
+          retention-days: 30
+
+      # (Optional) Commit the output file back to the repo
+      # Uncomment these steps if you want the .xlsx stored in your repo automatically
+      #
+      # - name: Commit output to repo
+      #   run: |
+      #     git config user.name  "github-actions[bot]"
+      #     git config user.email "github-actions[bot]@users.noreply.github.com"
+      #     git add telangana_colleges.xlsx
+      #     git diff --staged --quiet || git commit -m "chore: update college data [skip ci]"
+      #     git push
